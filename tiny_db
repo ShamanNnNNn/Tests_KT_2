@@ -1,0 +1,92 @@
+import pytest
+import sqlite3
+
+@pytest.fixture
+def empty_db():
+    return
+
+@pytest.fixture
+def good_db():
+    conn = sqlite3.connect(":memory:")
+    
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            age INTEGER
+        )
+    """)
+    test_data = [(0, "Yura", 18),
+                 (1, "Dima", 19),
+                 (2, "Max", 17)]
+    
+    cursor.executemany("INSERT INTO users (id, name, age) VALUES (?, ?, ?)", test_data)
+    conn.commit()
+    
+    return conn
+
+@pytest.fixture
+def db_connection():
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row  
+    
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            age INTEGER
+        )
+    """)
+    
+    cursor.executemany(
+        "INSERT INTO users (name, age) VALUES (?, ?)",
+        [("Yura", 18), ("Dima", 19), ("Max", 17)]
+    )
+    conn.commit()
+    
+    yield conn 
+    
+    cursor.execute("DELETE FROM users")
+    conn.commit()
+    conn.close()
+
+class DB_connect:
+    def data():
+        con = sqlite3.connect("metanit.db")
+        return con
+
+def test_db_connection(db_connection):
+    cursor = db_connection.cursor()
+    cursor.execute("SELECT COUNT(*) FROM users")
+    count = cursor.fetchone()[0]
+    assert count == 3
+
+def test_insert_user(db_connection):
+    cursor = db_connection.cursor()
+    cursor.execute("INSERT INTO users (name, age) VALUES (?, ?)", ("Test", 25))
+    db_connection.commit()
+    
+    cursor.execute("SELECT COUNT(*) FROM users")
+    count = cursor.fetchone()[0]
+    assert count == 4
+
+def test_user_data(db_connection):
+    cursor = db_connection.cursor()
+    cursor.execute("SELECT name, age FROM users WHERE age >= 18")
+    adults = cursor.fetchall()
+    
+    assert len(adults) == 2
+
+def test_db_with_teardown(db_connection_with_teardown):
+    cursor = db_connection_with_teardown.cursor()
+    
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+    tables = [row[0] for row in cursor.fetchall()]
+    
+    assert 'users' in tables
+    assert 'posts' in tables
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
