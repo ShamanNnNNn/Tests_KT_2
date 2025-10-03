@@ -1,0 +1,47 @@
+import pytest
+import tempfile
+import os
+
+def save_to_file(content, filename):
+    try:
+        with open(filename, 'w', encoding='utf-8') as file:
+            file.write(content)
+        return True
+    except Exception as e:
+        print(f"Ошибка при сохранении файла: {e}")
+        return False
+
+@pytest.fixture
+def temp_file():
+    with tempfile.NamedTemporaryFile(mode='w', delete=False, encoding='utf-8') as f:
+        temp_path = f.name
+    yield temp_path
+    if os.path.exists(temp_path):
+        os.unlink(temp_path)
+
+@pytest.fixture
+def empty_content():
+    return ""
+
+@pytest.fixture
+def sample_content():
+    return "Hello, World!"
+
+class TestSaveToFile:
+    
+    def test_empty_content(self, temp_file, empty_content):
+        result = save_to_file(empty_content, temp_file)
+        assert result == True
+        assert os.path.exists(temp_file)
+        with open(temp_file, 'r', encoding='utf-8') as f:
+            assert f.read() == ""
+    
+    def test_sample_content(self, temp_file, sample_content):
+        result = save_to_file(sample_content, temp_file)
+        assert result == True
+        assert os.path.exists(temp_file)
+        with open(temp_file, 'r', encoding='utf-8') as f:
+            assert f.read() == sample_content
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
