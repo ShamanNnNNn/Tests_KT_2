@@ -1,0 +1,59 @@
+import pytest
+
+def get_string_length(input_string):
+
+    return len(input_string)
+
+@pytest.fixture
+def empty_string():
+    return ""
+
+@pytest.fixture
+def multiline_string():
+    return "Первая\nВторая\nТретья"
+
+@pytest.fixture
+def space_string():
+    return "  "
+
+@pytest.fixture
+def normal_string():
+    return "Hello, World!"
+
+@pytest.fixture(params=[
+    ("", 0),                   
+    ("   ", 3),              
+    ("text", 4),              
+    ("a\nb", 3),           
+    ("\t\n", 2),          
+])
+def string_with_expected_length(request):
+    return request.param
+
+class TestString:
+    
+    def test_empty_string(self, empty_string):
+        result = get_string_length(empty_string)
+        assert result == 0
+        assert isinstance(result, int)
+    
+    def test_multiline_string(self, multiline_string):
+        result = get_string_length(multiline_string)
+        expected_length = len("Первая") + 1 + len("Вторая") + 1 + len("Третья")
+        assert result == expected_length
+    
+    def test_space_string(self, space_string):
+        result = get_string_length(space_string)
+        assert result == 2
+    
+    def test_normal_string(self, normal_string):
+        result = get_string_length(normal_string)
+        assert result == 13
+    
+    def test_string_with_expected_length(self, string_with_expected_length):
+        input_string, expected_length = string_with_expected_length
+        result = get_string_length(input_string)
+        assert result == expected_length
+
+if __name__ == "__main__":
+    pytest.main([__file__, "-v"])
