@@ -29,7 +29,7 @@ def good_db():
 @pytest.fixture
 def db_connection():
     conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row  
+    conn.row_factory = sqlite3.Row
     
     cursor = conn.cursor()
     cursor.execute("""
@@ -46,15 +46,57 @@ def db_connection():
     )
     conn.commit()
     
-    yield conn 
+    yield conn
     
     cursor.execute("DELETE FROM users")
     conn.commit()
     conn.close()
 
+@pytest.fixture
+def db_connection_with_teardown():
+    conn = None
+    try:
+        conn = sqlite3.connect(":memory:")
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            CREATE TABLE users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                age INTEGER
+            )
+        """)
+        
+        cursor.execute("""
+            CREATE TABLE posts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                title TEXT,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        """)
+        
+        cursor.executemany(
+            "INSERT INTO users (name, age) VALUES (?, ?)",
+            [("Yura", 18), ("Dima", 19), ("Max", 17)]
+        )
+        
+        cursor.executemany(
+            "INSERT INTO posts (user_id, title) VALUES (?, ?)",
+            [(1, "First post"), (2, "Second post")]
+        )
+        
+        conn.commit()
+        yield conn
+        
+    finally:
+        if conn:
+            conn.close()
+
 class DB_connect:
+    @staticmethod
     def data():
-        con = sqlite3.connect("metanit.db")
+        con = sqlite3.connect(":memory:")
         return con
 
 def test_db_connection(db_connection):
@@ -87,6 +129,24 @@ def test_db_with_teardown(db_connection_with_teardown):
     
     assert 'users' in tables
     assert 'posts' in tables
+    
+    cursor.execute("SELECT COUNT(*) FROM users")
+    user_count = cursor.fetchone()[0]
+    assert user_count == 3
+    
+    cursor.execute("SELECT COUNT(*) FROM posts")
+    post_count = cursor.fetchone()[0]
+    assert post_count == 2
+
+def test_good_db_fixture(good_db):
+    cursor = good_db.cursor()
+    cursor.execute("SELECT COUNT(*) FROM users")
+    count = cursor.fetchone()[0]
+    assert count == 3
+    
+    cursor.execute("SELECT name FROM users WHERE id = 0")
+    user_name = cursor.fetchone()[0]
+    assert user_name == "Yura"
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
